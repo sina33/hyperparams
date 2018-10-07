@@ -3,6 +3,7 @@ from keras import optimizers
 from matplotlib.pyplot import hist
 import random
 import numpy as np
+from math import log10, floor
 
 
 def get_rand_int(min, max, exclude=None):
@@ -37,8 +38,11 @@ def get_dropout_rate(min=0.1, max=0.9):
 
 
 def get_learning_rate(low=-4, high=-1):
+    def round_to_1(x):
+        return round(x, -int(floor(log10(abs(x)))))
     p = get_rand_int(low, high)
-    return 10 * random.random() * (10 ** p)
+    d = 10 * random.random() * (10 ** p)
+    return round_to_1(d)
 
 
 def get_optimizer(exclude=None):
@@ -50,16 +54,10 @@ def get_optimizer(exclude=None):
 
 
 def get_activation(exclude=None):
-    selection = ['softmax', 'elu', 'selu', 'softplus', 'softsign', 'relu', 'tanh', 'sigmoid', 'hard_sigmoid', 'linear']
+    selection = ['softmax', 'elu', 'selu', 'softplus', 'softsign', 'relu', 'tanh', 'sigmoid', 'hard_sigmoid', 'linear', None]
     if exclude is not None:
         selection.remove(exclude)
     return random.choice(selection)
     
 
 KEYS = ['filters', 'kernel_size', 'activation', 'pool_size', 'units', 'rate', 'optimizer', 'lr']
-
-def get_param(param):
-    pass
-
-x = [get_optimizer() for i in range(10)]
-print(x)
