@@ -3,8 +3,9 @@ from __future__ import print_function
 from pprint import pformat, pprint
 from copy import deepcopy
 import random
+from collections import OrderedDict
 from random import randint, randrange
-import lenet
+from nets import lenet
 import genes
 # import smallnet
 # import convnet
@@ -91,7 +92,9 @@ def main():
         fitness = [calc_fitness(i) for i in population]        
         # fitness = [calc_fitness(i) for i in population]
         # sort both fitness & population together
-        fitness, population = (list(t) for t in zip(*sorted(zip(fitness, population))))
+        from operator import itemgetter
+        [fitness, population] = [list(x) for x in zip(*sorted(zip(fitness, population), key=itemgetter(0)))]
+        # fitness, population = (list(t) for t in zip(*sorted(zip(fitness, population))))
         children = list()
         for _ in range(population_size):
             father, mother = parent_select(population, 0.5)
