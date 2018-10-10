@@ -7,6 +7,10 @@ from collections import OrderedDict
 from random import randint, randrange
 from nets import smallnet
 import genes
+import numpy as np
+from operator import itemgetter
+import multiprocessing as mp
+
 # import smallnet
 # import convnet
 import logging
@@ -14,15 +18,28 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 logging.basicConfig(filename='log.txt', level=logging.DEBUG)
 
 
-# History of runs: {hash: {chromosome:[..], fitness:3.14, stat:{loss:0.1, val_loss:0.098 ...}}}
+# History of runs: Records[id] = {chromosome:[..], fitness:3.14, stat:{loss:0.1, val_loss:0.098 ...}, hash=1234}
 Records = dict()
 
 
 def get_hash(params):
     l = [params['L1']['units'], params['L1']['activation'], 
             params['L2']['units'], params['L2']['activation'],
-            params['L3']['activation'], params['opt'], params['lr']]
+            str(params['L3']['activation']), params['opt'], params['lr']]
     return hash(tuple(l))
+
+
+def is_same(m, n):
+    cond = [ n['L1']['units'] == m['L1']['units'] ,
+        n['L1']['activation'] == m['L1']['activation'] ,
+        n['L2']['units'] == m['L2']['units'] ,
+        n['L2']['activation'] == m['L2']['activation'] ,
+        n['L3']['activation'] == m['L3']['activation'] ,
+        str(n['opt']) == str(m['opt']) ,
+        n['lr'] == m['lr'] ]
+    return all(cond)
+    
+
 
 
 def create_individual():
@@ -33,7 +50,7 @@ def create_individual():
     params['L3'] = {'activation': genes.get_activation()}
     params['opt'] = genes.get_optimizer()
     params['lr'] = genes.get_learning_rate()
-    params['hash'] = get_hash(params)
+    # params['hash'] = get_hash(params)
     return params
     # ### lenet
     # params = dict()
@@ -51,7 +68,7 @@ def create_individual():
 
 def update_records(id, indiv, score, stats):
     logging.info('Records updated!')
-    Records[id] = {'chromosome': indiv, 'fitness':score, 'stats':stats, 'hash':get_hash(indiv)}
+    Records[id] = {'chromosome': indiv, 'fitness':score, 'stats':stats}
     logging.info("Records[%s] = %s", id, Records[id])
 
 
@@ -66,21 +83,56 @@ def calc_fitness(individual):
     pprint(pformat(individual))
     h = None
     for r in Records.values():
-        if r['hash'] == get_hash(individual):
-            # score = r.get('score', 0)
+        if is_same( r['chromosome'], individual):
             h = r['stats']
     if h is None:
         h = smallnet.run(individual)
     score = 1/h['val_loss'][-1]
+    l = len(h['val_loss'])
+    i = l-1
+    while(np.isnan(score) & i>0):
+        i -= 1
+        score = 1/h['val_loss'][i]
+    if np.isnan(score):
+        score = 0
     # logging.debug('lenet run completed: %s', h)
     update_records(len(Records)+1, individual, score, h)
     return score
 
 
+def get_fitness(individual, q):
+    # pprint(pformat(individual))
+    h = smallnet.run(individual)
+    score = 1/h['val_loss'][-1]
+    l = len(h['val_loss'])
+    i = l-1
+    while(np.isnan(score) & i>0):
+        i -= 1
+        score = 1/h['val_loss'][i]
+    if np.isnan(score):
+        score = 0
+    q.put([len(Records)+1, individual, score, h])
+    # logging.debug('lenet run completed: %s', h)
+    # update_records(len(Records)+1, individual, score, h)
+
+
 def parent_select(population, fitness, fraction=0.5):
-    top_index = int( (1-fraction)*len(population) )
-    father, mother = random.sample(population[top_index:], 2)
-    return father, mother
+    ### roulette wheel selection
+    indices = [i for i in range(len(population))]
+    weights = [f for f in fitness]
+    [fatherIdx] = random.choices(indices, weights=weights)
+    [motherIdx] = random.choices(indices, weights=weights)
+    while(motherIdx == fatherIdx):
+        [motherIdx] = random.choices(indices, weights=weights)
+    # logging.debug('indices: %s', indices)
+    # logging.debug('weights: %s', weights)
+    # logging.debug('fatherIdx: %s', fatherIdx)
+    # logging.debug('motherIdx: %s', motherIdx)
+    return population[fatherIdx], population[motherIdx]
+    ### truncate selection 
+    # top_index = int( (1-fraction)*len(population) )
+    # father, mother = random.sample(population[top_index:], 2)
+    # return father, mother
 
 
 def crossover(father, mother):
@@ -88,31 +140,32 @@ def crossover(father, mother):
     mask = [randint(0,1) for _ in range(7)]
     # logging.debug('mask: %s', mask)
     child = [deepcopy(father), deepcopy(mother)]
-    # if mask[0] == 1:
-    #     child[0]['L1']['units'] = mother['L1']['units']
-    #     child[1]['L1']['units'] = father['L1']['units']
-    # if mask[1] == 1:
-    #     child[0]['L1']['activation'] = mother['L1']['activation']
-    #     child[1]['L1']['activation'] = father['L1']['activation']
-    # if mask[2] == 1:
-    #     child[0]['L2']['units'] = mother['L2']['units']
-    #     child[1]['L2']['units'] = father['L2']['units']
-    # if mask[3] == 1:
-    #     child[0]['L2']['activation'] = mother['L2']['activation']
-    #     child[1]['L2']['activation'] = father['L2']['activation']
-    # if mask[4] == 1:
-    #     child[0]['L3']['activation'] = mother['L3']['activation']
-    #     child[1]['L3']['activation'] = father['L3']['activation']
-    # if mask[5] == 1:
-    #     child[0]['opt'] = mother['opt']
-    #     child[1]['opt'] = father['opt']
-    # if mask[6] == 1:
-    #     child[0]['lr'] = mother['lr']
-    #     child[1]['lr'] = father['lr']
-    for key in father.keys():
-        mask = randint(0,1)
-        child[mask][key] = father[key]
-        child[1-mask][key] = mother[key]
+    if mask[0] == 1:
+        child[0]['L1']['units'] = mother['L1']['units']
+        child[1]['L1']['units'] = father['L1']['units']
+    if mask[1] == 1:
+        child[0]['L1']['activation'] = mother['L1']['activation']
+        child[1]['L1']['activation'] = father['L1']['activation']
+    if mask[2] == 1:
+        child[0]['L2']['units'] = mother['L2']['units']
+        child[1]['L2']['units'] = father['L2']['units']
+    if mask[3] == 1:
+        child[0]['L2']['activation'] = mother['L2']['activation']
+        child[1]['L2']['activation'] = father['L2']['activation']
+    if mask[4] == 1:
+        child[0]['L3']['activation'] = mother['L3']['activation']
+        child[1]['L3']['activation'] = father['L3']['activation']
+    if mask[5] == 1:
+        child[0]['opt'] = mother['opt']
+        child[1]['opt'] = father['opt']
+    if mask[6] == 1:
+        child[0]['lr'] = mother['lr']
+        child[1]['lr'] = father['lr']
+    # for key in father.keys():
+    #     mask = randint(0,1)
+    #     child[mask][key] = father[key]
+    #     child[1-mask][key] = mother[key]
+
     # logging.debug('father: %s', father)
     # logging.debug('mother: %s', mother)
     # logging.debug('child[0]: %s', child[0])
@@ -140,22 +193,39 @@ def mutate(indiv, rate):
 
 
 def main():
-    population_size = 20
-    tot_generations = 10
+    population_size = 3
+    tot_generations = 2
     mutate_rate = 0.05
     crossover_rate = 0.5
     population = [create_individual() for _ in range(population_size)]
 
     for _ in range(tot_generations):
-        fitness = [dummy_fitness(p) for p in population]        
-        # fitness = [calc_fitness(i) for i in population]
+        queue = mp.Queue()
+        processes = [mp.Process(target=get_fitness, args=(p, queue)) for p in population]
+        for process in processes:
+            process.start()
+        for process in processes:
+            process.join()
+        fitness = list()
+        population = list()
+        while not queue.empty():
+            result = queue.get()
+            index, chromosome, score, hist = result
+            fitness.append(score)
+            population.append(chromosome)
+        # fitness = [calc_fitness(p) for p in population]        
         # sort both fitness & population together
-        from operator import itemgetter
         [fitness, population] = [list(x) for x in zip(*sorted(zip(fitness, population), key=itemgetter(0)))]
-        # fitness, population = (list(t) for t in zip(*sorted(zip(fitness, population))))
+        # convert to descending order
+        fitness.reverse()
+        population.reverse()
+
         children = list()
-        for _ in range(int(population_size/2)):
-            father, mother = parent_select(population, 0.5)
+        ### elitism = True
+        children.extend(population[:2])
+        # for _ in range(int(population_size/2)):
+        while(len(children) < population_size):
+            father, mother = parent_select(population, fitness)
             children.extend(crossover(father, mother))
 
         for p in range(population_size):
@@ -164,7 +234,7 @@ def main():
         #     # logging.debug('children: %s', children)
         #     # logging.debug("children[%s] = %s", i, children[i])
         #     children[i] = mutate(children[i])
-        population = children
+        population = children[:population_size]
 
     # logging.info('Records: %s', pformat(Records))
     c = 1
@@ -172,11 +242,19 @@ def main():
     for k, v in Records.items():
         logging.info('%s - score: %s, chromosome: %s', c, v['fitness'], v['chromosome'])
         s += v['fitness']
-        if c%10 == 0:
+        if c%population_size == 0:
             logging.info('mean: %s', s/population_size)
             s = 0
         c += 1
-        
+
+    ### sort a list of dictionaries in descending order
+    # newlist = sorted(Records, key=itemgetter('score'))
+    # newlist.reverse()
+    # srt_records = deepcopy(Records)
+    
+    for key, value in sorted(Records.items(), key=lambda x: x[1]['fitness'], reverse=True):
+        logging.info('Record[%s]: %s', key, value)
+    
 
 if __name__ == '__main__':
     main()

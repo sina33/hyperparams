@@ -1,3 +1,5 @@
 {
-    "python.pythonPath": "C:\\Users\\sina\\Anaconda3\\envs\\keras\\python.exe"
+    "python.pythonPath": "C:\\Users\\sina\\Anaconda3\\envs\\keras\\python.exe",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }
