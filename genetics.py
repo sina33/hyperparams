@@ -40,8 +40,6 @@ def is_same(m, n):
     return all(cond)
     
 
-
-
 def create_individual():
     ### smallnet
     params = dict()
@@ -67,7 +65,7 @@ def create_individual():
     
 
 def update_records(id, indiv, score, stats):
-    logging.info('Records updated!')
+    # logging.info('Records updated!')
     Records[id] = {'chromosome': indiv, 'fitness':score, 'stats':stats}
     logging.info("Records[%s] = %s", id, Records[id])
 
@@ -100,7 +98,7 @@ def calc_fitness(individual):
     return score
 
 
-def get_fitness(individual, q):
+def get_fitness(individual, q, id):
     # pprint(pformat(individual))
     h = smallnet.run(individual)
     score = 1/h['val_loss'][-1]
@@ -111,7 +109,7 @@ def get_fitness(individual, q):
         score = 1/h['val_loss'][i]
     if np.isnan(score):
         score = 0
-    q.put([len(Records)+1, individual, score, h])
+    q.put([id, individual, score, h])
     # logging.debug('lenet run completed: %s', h)
     # update_records(len(Records)+1, individual, score, h)
 
@@ -173,7 +171,6 @@ def crossover(father, mother):
     return child
 
 
-
 def mutate(indiv, rate):
     if random.random() < rate:
         indiv['L1']['units'] = genes.get_units(exclude=indiv['L1']['units'])
@@ -193,7 +190,7 @@ def mutate(indiv, rate):
 
 
 def main():
-    population_size = 3
+    population_size = 4
     tot_generations = 2
     mutate_rate = 0.05
     crossover_rate = 0.5
@@ -201,7 +198,7 @@ def main():
 
     for _ in range(tot_generations):
         queue = mp.Queue()
-        processes = [mp.Process(target=get_fitness, args=(p, queue)) for p in population]
+        processes = [mp.Process(target=get_fitness, args=(p, queue, num+len(Records)+1)) for num, p in enumerate(population)]
         for process in processes:
             process.start()
         for process in processes:
@@ -211,6 +208,7 @@ def main():
         while not queue.empty():
             result = queue.get()
             index, chromosome, score, hist = result
+            update_records(index, chromosome, score, hist)
             fitness.append(score)
             population.append(chromosome)
         # fitness = [calc_fitness(p) for p in population]        
@@ -252,6 +250,9 @@ def main():
     # newlist.reverse()
     # srt_records = deepcopy(Records)
     
+    logging.info('='*40)
+    logging.info('sorting Records based on score')
+    logging.info('-'*40)
     for key, value in sorted(Records.items(), key=lambda x: x[1]['fitness'], reverse=True):
         logging.info('Record[%s]: %s', key, value)
     
