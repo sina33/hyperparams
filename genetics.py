@@ -5,7 +5,7 @@ from copy import deepcopy
 import random
 from collections import OrderedDict
 from random import randint, randrange
-from nets import smallnet
+from nets import lenet
 import genes
 import numpy as np
 from operator import itemgetter
@@ -43,9 +43,13 @@ def is_same(m, n):
 def create_individual():
     ### smallnet
     params = dict()
-    params['L1'] = {'units': genes.get_units(), 'activation': genes.get_activation()}
-    params['L2'] = {'units': genes.get_units(), 'activation': genes.get_activation()}
-    params['L3'] = {'activation': genes.get_activation()}
+    params['L1'] = {'filters': genes.get_filters(), 'kernel_size': genes.get_kernel_size() , 'activation': genes.get_activation()}
+    params['L2'] = {'filters': genes.get_filters(), 'kernel_size': genes.get_kernel_size() , 'activation': genes.get_activation()}
+    params['L3'] = {'pool_size': genes.get_pool_size()}
+    params['L4'] = {'rate': genes.get_dropout_rate()}
+    params['L5'] = {'units': genes.get_units(), 'activation': genes.get_activation()}
+    params['L6'] = {'rate': genes.get_dropout_rate()}
+    params['L7'] = {'activation': genes.get_activation()}
     params['opt'] = genes.get_optimizer()
     params['lr'] = genes.get_learning_rate()
     # params['hash'] = get_hash(params)
@@ -100,7 +104,7 @@ def calc_fitness(individual):
 
 def get_fitness(individual, q, id):
     # pprint(pformat(individual))
-    h = smallnet.run(individual)
+    h = lenet.run(individual)
     score = 1/h['val_loss'][-1]
     l = len(h['val_loss'])
     i = l-1
@@ -135,28 +139,49 @@ def parent_select(population, fitness, fraction=0.5):
 
 def crossover(father, mother):
     # child = [father[key] if random.random() > 0.5 else mother[key] for key in father.keys()]
-    mask = [randint(0,1) for _ in range(7)]
+    mask = [randint(0,1) for _ in range(14)]
     # logging.debug('mask: %s', mask)
     child = [deepcopy(father), deepcopy(mother)]
     if mask[0] == 1:
-        child[0]['L1']['units'] = mother['L1']['units']
-        child[1]['L1']['units'] = father['L1']['units']
+        child[0]['L1']['filters'] = mother['L1']['filters']
+        child[1]['L1']['filters'] = father['L1']['filters']
     if mask[1] == 1:
+        child[0]['L1']['kernel_size'] = mother['L1']['kernel_size']
+        child[1]['L1']['kernel_size'] = father['L1']['kernel_size']
+    if mask[2] == 1:
         child[0]['L1']['activation'] = mother['L1']['activation']
         child[1]['L1']['activation'] = father['L1']['activation']
-    if mask[2] == 1:
-        child[0]['L2']['units'] = mother['L2']['units']
-        child[1]['L2']['units'] = father['L2']['units']
     if mask[3] == 1:
+        child[0]['L2']['filters'] = mother['L2']['filters']
+        child[1]['L2']['filters'] = father['L2']['filters']
+    if mask[4] == 1:
+        child[0]['L2']['kernel_size'] = mother['L2']['kernel_size']
+        child[1]['L2']['kernel_size'] = father['L2']['kernel_size']
+    if mask[5] == 1:
         child[0]['L2']['activation'] = mother['L2']['activation']
         child[1]['L2']['activation'] = father['L2']['activation']
-    if mask[4] == 1:
-        child[0]['L3']['activation'] = mother['L3']['activation']
-        child[1]['L3']['activation'] = father['L3']['activation']
-    if mask[5] == 1:
+    if mask[6] == 1:
+        child[0]['L3']['pool_size'] = mother['L3']['pool_size']
+        child[1]['L3']['pool_size'] = father['L3']['pool_size']
+    if mask[7] == 1:
+        child[0]['L4']['rate'] = mother['L4']['rate']
+        child[1]['L4']['rate'] = father['L4']['rate']
+    if mask[8] == 1:
+        child[0]['L5']['units'] = mother['L5']['units']
+        child[1]['L5']['units'] = father['L5']['units']
+    if mask[9] == 1:
+        child[0]['L5']['activation'] = mother['L5']['activation']
+        child[1]['L5']['activation'] = father['L5']['activation']
+    if mask[10] == 1:
+        child[0]['L6']['rate'] = mother['L6']['rate']
+        child[1]['L6']['rate'] = father['L6']['rate']
+    if mask[11] == 1:
+        child[0]['L7']['activation'] = mother['L7']['activation']
+        child[1]['L7']['activation'] = father['L7']['activation']
+    if mask[12] == 1:
         child[0]['opt'] = mother['opt']
         child[1]['opt'] = father['opt']
-    if mask[6] == 1:
+    if mask[13] == 1:
         child[0]['lr'] = mother['lr']
         child[1]['lr'] = father['lr']
     # for key in father.keys():
@@ -173,15 +198,29 @@ def crossover(father, mother):
 
 def mutate(indiv, rate):
     if random.random() < rate:
-        indiv['L1']['units'] = genes.get_units(exclude=indiv['L1']['units'])
+        indiv['L1']['filters'] = genes.get_filters(exclude=indiv['L1']['filters'])
+    if random.random() < rate:
+        indiv['L1']['kernel_size'] = genes.get_kernel_size(exclude=indiv['L1']['kernel_size'])
     if random.random() < rate:
         indiv['L1']['activation'] = genes.get_activation(exclude=indiv['L1']['activation'])
     if random.random() < rate:
-        indiv['L2']['units'] = genes.get_units(exclude=indiv['L2']['units'])
+        indiv['L2']['filters'] = genes.get_filters(exclude=indiv['L2']['filters'])
+    if random.random() < rate:
+        indiv['L2']['kernel_size'] = genes.get_kernel_size(exclude=indiv['L2']['kernel_size'])
     if random.random() < rate:
         indiv['L2']['activation'] = genes.get_activation(exclude=indiv['L2']['activation'])
     if random.random() < rate:
-        indiv['L3']['activation'] = genes.get_activation(exclude=indiv['L3']['activation'])
+        indiv['L3']['pool_size'] = genes.get_pool_size(exclude=indiv['L3']['pool_size'])
+    if random.random() < rate:
+        indiv['L4']['rate'] = genes.get_dropout_rate()
+    if random.random() < rate:
+        indiv['L5']['units'] = genes.get_units(exclude=indiv['L5']['units'])
+    if random.random() < rate:
+        indiv['L5']['activation'] = genes.get_activation(exclude=indiv['L5']['activation'])
+    if random.random() < rate:
+        indiv['L6']['rate'] = genes.get_dropout_rate()
+    if random.random() < rate:
+        indiv['L7']['activation'] = genes.get_activation(exclude=indiv['L7']['activation'])
     if random.random() < rate:
         indiv['opt'] = genes.get_optimizer(exclude=indiv['opt'])
     if random.random() < rate:
@@ -241,15 +280,12 @@ def main():
         logging.info('%s - score: %s, chromosome: %s', c, v['fitness'], v['chromosome'])
         s += v['fitness']
         if c%population_size == 0:
-            logging.info('mean: %s', s/population_size)
+            logging.info('Generation %s  average score: %s', int(c/population_size), round(s/population_size, 5))
+            logging.info('-'*30)
             s = 0
         c += 1
 
     ### sort a list of dictionaries in descending order
-    # newlist = sorted(Records, key=itemgetter('score'))
-    # newlist.reverse()
-    # srt_records = deepcopy(Records)
-    
     logging.info('='*40)
     logging.info('sorting Records based on score')
     logging.info('-'*40)

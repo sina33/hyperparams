@@ -38,7 +38,7 @@ def run(params):
     # design neural network architecture
     model = Sequential()
     model.add(Conv2D(params['L1']['filters'], kernel_size=(k1, k1), activation=params['L1']['activation'], input_shape=(28, 28, 1)))
-    # model.add(Conv2D(params['L2']['filters'], kernel_size=(k2, k2), activation=params['L1']['activation']))
+    model.add(Conv2D(params['L2']['filters'], kernel_size=(k2, k2), activation=params['L1']['activation']))
     model.add(MaxPooling2D(pool_size=(p, p)))
     model.add(Dropout(params['L4']['rate']))
     model.add(Flatten())
