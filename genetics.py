@@ -5,7 +5,7 @@ from copy import deepcopy
 import random
 from collections import OrderedDict
 from random import randint, randrange
-from nets import lenet
+import lenet
 import genes
 import numpy as np
 from operator import itemgetter
@@ -229,8 +229,8 @@ def mutate(indiv, rate):
 
 
 def main():
-    population_size = 4
-    tot_generations = 2
+    population_size = 20
+    tot_generations = 10
     mutate_rate = 0.05
     crossover_rate = 0.5
     population = [create_individual() for _ in range(population_size)]
@@ -242,13 +242,13 @@ def main():
             process.start()
         for process in processes:
             process.join()
-        fitness = list()
+        fitness = [0] * population_size # list()
         population = list()
         while not queue.empty():
             result = queue.get()
             index, chromosome, score, hist = result
             update_records(index, chromosome, score, hist)
-            fitness.append(score)
+            fitness[index] = score
             population.append(chromosome)
         # fitness = [calc_fitness(p) for p in population]        
         # sort both fitness & population together
@@ -274,16 +274,16 @@ def main():
         population = children[:population_size]
 
     # logging.info('Records: %s', pformat(Records))
-    c = 1
-    s = 0
-    for k, v in Records.items():
-        logging.info('%s - score: %s, chromosome: %s', c, v['fitness'], v['chromosome'])
-        s += v['fitness']
-        if c%population_size == 0:
-            logging.info('Generation %s  average score: %s', int(c/population_size), round(s/population_size, 5))
-            logging.info('-'*30)
-            s = 0
-        c += 1
+        c = 1
+        s = 0
+        for k, v in Records.items():
+            logging.info('%s - score: %s, chromosome: %s', c, v['fitness'], v['chromosome'])
+            s += v['fitness']
+            if c%population_size == 0:
+                logging.info('Generation %s  average score: %s', int(c/population_size), round(s/population_size, 5))
+                logging.info('-'*30)
+                s = 0
+            c += 1
 
     ### sort a list of dictionaries in descending order
     logging.info('='*40)
