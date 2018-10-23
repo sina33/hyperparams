@@ -22,13 +22,6 @@ logging.basicConfig(filename='log.txt', level=logging.DEBUG)
 Records = dict()
 
 
-def get_hash(params):
-    l = [params['L1']['units'], params['L1']['activation'], 
-            params['L2']['units'], params['L2']['activation'],
-            str(params['L3']['activation']), params['opt'], params['lr']]
-    return hash(tuple(l))
-
-
 def is_same(m, n):
     cond = [ n['L1']['units'] == m['L1']['units'] ,
         n['L1']['activation'] == m['L1']['activation'] ,
@@ -67,7 +60,7 @@ def create_individual():
 def update_records(id, indiv, score, stats):
     # logging.info('Records updated!')
     Records[id] = {'chromosome': indiv, 'fitness':score, 'stats':stats}
-    logging.info("Records[%s] = %s", id, pformat(Records[id]))
+    logging.info("Records[%s] = %s", id, Records[id])
 
 
 def dummy_fitness(individual):
@@ -95,6 +88,7 @@ def calc_fitness(individual):
     # logging.debug('lenet run completed: %s', h)
     update_records(len(Records)+1, individual, score, h)
     return score
+
 
 # get fitness in parallel mode
 def get_fitness(individual, q, id, records):
