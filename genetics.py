@@ -58,9 +58,8 @@ def create_individual():
     
 
 def update_records(id, indiv, score, stats):
-    # logging.info('Records updated!')
     Records[id] = {'chromosome': indiv, 'fitness':score, 'stats':stats}
-    logging.info("Records[%s] = %s", id, Records[id])
+    # logging.info("Records[%s] = %s", id, Records[id])
 
 
 def dummy_fitness(individual):
@@ -191,12 +190,12 @@ def mutate(indiv, rate):
 
 def main():
     population_size = 20
-    tot_generations = 3
+    tot_generations = 20
     mutate_rate = 0.05
     crossover_rate = 0.5
     population = [create_individual() for _ in range(population_size)]
 
-    for _ in range(tot_generations):
+    for gen in range(tot_generations):
         queue = mp.Queue()
         processes = [mp.Process(target=get_fitness, args=(p, queue, num+len(Records)+1, Records)) for num, p in enumerate(population)]
         for process in processes:
@@ -234,27 +233,40 @@ def main():
         #     children[i] = mutate(children[i])
         population = children[:population_size]
 
-    # logging.info('Records: %s', pformat(Records))
-    c = 1
-    s = 0
-    for k, v in Records.items():
-        logging.info('%s - score: %s, chromosome: %s', k, v['fitness'], v['chromosome'])
-        s += v['fitness']
-        if c%population_size == 0:
-            logging.info('mean: %s', s/population_size)
-            s = 0
-        c += 1
 
-    ### sort a list of dictionaries in descending order
-    # newlist = sorted(Records, key=itemgetter('score'))
-    # newlist.reverse()
-    # srt_records = deepcopy(Records)
-    
-    logging.info('='*40)
-    logging.info('sorting Records based on score')
-    logging.info('-'*40)
-    for key, value in sorted(Records.items(), key=lambda x: x[1]['fitness'], reverse=True):
-        logging.info('Record[%s]: %s', key, value)
+        fitness_sum = 0
+        zeroes = 0
+        Gen = { k: Records[k] for k in range(gen*population_size+1, (gen+1)*population_size+1) }
+        for k, v in Gen.items():
+            logging.info('%s - score: %s, chromosome: %s, stats: %s', k, v['fitness'], v['chromosome'], v['stats'])
+            fitness_sum += v['fitness']
+            if v['fitness'] == 0:
+                zeroes += 1
+        logging.info('  Average Fitness in Generation %s: %s',gen, fitness_sum/(population_size-zeroes))
+        logging.info('--'*20)
+            
+
+    # # Report
+    # c = 1
+    # s = 0
+    # z = 0
+    # for k, v in Records.items():
+    #     logging.info('%s - score: %s, chromosome: %s, stats: %s', k, v['fitness'], v['chromosome'], v['stats'])
+    #     s += v['fitness']
+    #     if v['fitness'] == 0:
+    #         z += 1
+    #     if c%population_size == 0:
+    #         logging.info('mean: %s', s/(population_size-z))
+    #         s = 0
+    #         z = 0
+    #     c += 1
+
+    # ### sort a list of dictionaries in descending order
+    # logging.info('='*40)
+    # logging.info('sorting Records based on score')
+    # logging.info('-'*40)
+    # for key, value in sorted(Records.items(), key=lambda x: x[1]['fitness'], reverse=True):
+    #     logging.info('Record[%s]: %s', key, value)
     
 
 if __name__ == '__main__':
