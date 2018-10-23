@@ -67,7 +67,7 @@ def create_individual():
 def update_records(id, indiv, score, stats):
     # logging.info('Records updated!')
     Records[id] = {'chromosome': indiv, 'fitness':score, 'stats':stats}
-    logging.info("Records[%s] = %s", id, Records[id])
+    logging.info("Records[%s] = %s", id, pformat(Records[id]))
 
 
 def dummy_fitness(individual):
@@ -78,7 +78,6 @@ def dummy_fitness(individual):
 
 
 def calc_fitness(individual):
-    pprint(pformat(individual))
     h = None
     for r in Records.values():
         if is_same( r['chromosome'], individual):
@@ -97,20 +96,27 @@ def calc_fitness(individual):
     update_records(len(Records)+1, individual, score, h)
     return score
 
-
-def get_fitness(individual, q, id):
+# get fitness in parallel mode
+def get_fitness(individual, q, id, records):
     # pprint(pformat(individual))
-    h = smallnet.run(individual)
-    score = 1/h['val_loss'][-1]
+    h = None
+    for r in records.values():
+        if is_same( r['chromosome'], individual):
+            h = r['stats']
+    if h is None:
+        h = smallnet.run(individual)
+    loss = h['val_loss'][-1]
     l = len(h['val_loss'])
     i = l-1
-    while(np.isnan(score) & i>0):
+    while(np.isnan(loss) & i>0):
         i -= 1
-        score = 1/h['val_loss'][i]
-    if np.isnan(score):
+        loss = h['val_loss'][i]
+    score = 0
+    if np.isnan(loss):
         score = 0
+    else:
+        score =  round( 1/loss, 5)
     q.put([id, individual, score, h])
-    # logging.debug('lenet run completed: %s', h)
     # update_records(len(Records)+1, individual, score, h)
 
 
@@ -191,26 +197,26 @@ def mutate(indiv, rate):
 
 def main():
     population_size = 20
-    tot_generations = 20
+    tot_generations = 3
     mutate_rate = 0.05
     crossover_rate = 0.5
     population = [create_individual() for _ in range(population_size)]
 
     for _ in range(tot_generations):
         queue = mp.Queue()
-        processes = [mp.Process(target=get_fitness, args=(p, queue, num+len(Records)+1)) for num, p in enumerate(population)]
+        processes = [mp.Process(target=get_fitness, args=(p, queue, num+len(Records)+1, Records)) for num, p in enumerate(population)]
         for process in processes:
             process.start()
         for process in processes:
             process.join()
         fitness = [0] * population_size # list()
-        population = list()
+        population = [None] * population_size
         while not queue.empty():
             result = queue.get()
             index, chromosome, score, hist = result
             update_records(index, chromosome, score, hist)
             fitness[index % population_size] = score
-            population.append(chromosome)
+            population[index % population_size] = chromosome
         # fitness = [calc_fitness(p) for p in population]        
         # sort both fitness & population together
         [fitness, population] = [list(x) for x in zip(*sorted(zip(fitness, population), key=itemgetter(0)))]
