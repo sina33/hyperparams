@@ -190,8 +190,8 @@ def mutate(indiv, rate):
 
 def main():
     population_size = 20
-    tot_generations = 20
-    mutate_rate = 0.05
+    tot_generations = 50
+    mutate_rate = 0.15
     crossover_rate = 0.5
     population = [create_individual() for _ in range(population_size)]
 

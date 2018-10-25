@@ -49,8 +49,8 @@ def run(params):
     model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=lr), metrics=['accuracy'])
 
     # train
-    hist = model.fit(X_train, Y_train, batch_size=128, epochs=2, verbose=0, validation_data=(X_test, Y_test))
-                    # callbacks=[EarlyStopping(min_delta=0.02)])
+    callbacks=[EarlyStopping(monitor='val_loss', patience=2)]
+    hist = model.fit(X_train, Y_train, batch_size=128, epochs=20, verbose=0, validation_data=(X_test, Y_test), callbacks=callbacks)
     # weights = model.get_weights()
     # for i in range(np.shape(weights)[0]):
     #     print(np.shape(weights[i]))
