@@ -57,15 +57,15 @@ def create_individual():
     # return params
     
 
-def update_records(id, indiv, score, stats):
-    Records[id] = {'chromosome': indiv, 'fitness':score, 'stats':stats}
+def update_records(id, indiv, score, err, stats):
+    Records[id] = {'fitness': score, 'error': err, 'chromosome': indiv, 'stats':stats}
     # logging.info("Records[%s] = %s", id, Records[id])
 
 
 def dummy_fitness(individual):
     # logging.info('dummy_fitness individual: %s', individual)
     score = 1/random.random()
-    update_records(len(Records)+1, individual, score, "{'val_loss': 1}")
+    update_records(len(Records)+1, individual, score, 1, "{'val_loss': 1}")
     return score
 
 
@@ -85,31 +85,38 @@ def calc_fitness(individual):
     if np.isnan(score):
         score = 0
     # logging.debug('lenet run completed: %s', h)
-    update_records(len(Records)+1, individual, score, h)
+    update_records(len(Records)+1, individual, score, 1,  h)
     return score
 
 
 # get fitness in parallel mode
 def get_fitness(individual, q, id, records):
     # pprint(pformat(individual))
+    def last_non_nan(listfloats):
+        for item in reversed(listfloats):
+            if not np.isnan(item):
+                return item
+        return np.nan
+
     h = None
     for r in records.values():
         if is_same( r['chromosome'], individual):
             h = r['stats']
     if h is None:
         h = smallnet.run(individual)
-    loss = h['val_loss'][-1]
-    l = len(h['val_loss'])
-    i = l-1
-    while(np.isnan(loss) & i>0):
-        i -= 1
-        loss = h['val_loss'][i]
+    loss_list = h['val_loss']
+    acc_list = h['val_acc']
+    loss = last_non_nan(loss_list)
+    acc = last_non_nan(acc_list)
     score = 0
-    if np.isnan(loss):
+    err = 100
+    if np.isnan(acc):
         score = 0
     else:
-        score =  round( 1/loss, 5)
-    q.put([id, individual, score, h])
+        err = round( (1-acc)*100, 2)
+        score = round( acc*100, 2)
+        # score =  round( 1/loss, 5)
+    q.put([id, individual, score, err, h])
     # update_records(len(Records)+1, individual, score, h)
 
 
@@ -189,8 +196,8 @@ def mutate(indiv, rate):
 
 
 def main():
-    population_size = 20
-    tot_generations = 50
+    population_size = 4
+    tot_generations = 5
     mutate_rate = 0.15
     crossover_rate = 0.5
     population = [create_individual() for _ in range(population_size)]
@@ -206,8 +213,8 @@ def main():
         population = [None] * population_size
         while not queue.empty():
             result = queue.get()
-            index, chromosome, score, hist = result
-            update_records(index, chromosome, score, hist)
+            index, chromosome, score, err, hist = result
+            update_records(index, chromosome, score, err, hist)
             fitness[index % population_size] = score
             population[index % population_size] = chromosome
         # fitness = [calc_fitness(p) for p in population]        
@@ -238,7 +245,8 @@ def main():
         zeroes = 0
         Gen = { k: Records[k] for k in range(gen*population_size+1, (gen+1)*population_size+1) }
         for k, v in Gen.items():
-            logging.info('%s - score: %s, chromosome: %s, stats: %s', k, v['fitness'], v['chromosome'], v['stats'])
+            # logging.info('%s - score: %s, chromosome: %s, stats: %s', k, v['fitness'], v['chromosome'], v['stats'])
+            logging.info('%s - score: %s, error: %s, stats: %s', k, v['fitness'], v['error'], v['stats'])
             fitness_sum += v['fitness']
             if v['fitness'] == 0:
                 zeroes += 1
