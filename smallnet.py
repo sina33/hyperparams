@@ -42,14 +42,14 @@ elif dataset == 'cifar10':
     Y_test = keras.utils.to_categorical(Y_test, n_classes)
 
 # def run(n1=64, n2=64, ac1='relu', ac2='relu', ini1='ones', ini2='zeros', lr=0.1):
-def run(params):
-    n1 = params['L1']['units']
-    ac1 = params['L1']['activation']
-    n2 = params['L2']['units']
-    ac2 = params['L2']['activation']
-    ac3 = params['L3']['activation']
-    opt = params['opt']
-    lr = params['lr']
+def run(params, confusion=False):
+    n1 = 64 # params['L1']['units']
+    ac1 = 'relu' # params['L1']['activation']
+    n2 = 64 # params['L2']['units']
+    ac2 = 'relu' # params['L2']['activation']
+    ac3 = 'sigmoid' # params['L3']['activation']
+    opt = keras.optimizers.SGD # params['opt']
+    lr = 0.01 # params['lr']
     # design neural network architecture
     model = Sequential()
     model.add(Dense(n1, activation=ac1, input_shape=in_shape))
@@ -65,10 +65,11 @@ def run(params):
     # train
     callbacks=[EarlyStopping(monitor='val_loss', patience=2)]
     hist = model.fit(X_train, Y_train, batch_size=128, epochs=2, verbose=1, validation_data=(X_test, Y_test))
-    # weights = model.get_weights()
-    # for i in range(np.shape(weights)[0]):
-    #     print(np.shape(weights[i]))
-    return hist.history
+
+    if confusion:
+        return model, X_test, Y_test
+    else:
+        return hist.history
 
 # if __name__=="__main__":
 #     hist = run(64, 64, 'relu', 'tanh')
