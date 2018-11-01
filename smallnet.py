@@ -43,13 +43,23 @@ elif dataset == 'cifar10':
 
 # def run(n1=64, n2=64, ac1='relu', ac2='relu', ini1='ones', ini2='zeros', lr=0.1):
 def run(params, confusion=False):
-    n1 = 64 # params['L1']['units']
-    ac1 = 'relu' # params['L1']['activation']
-    n2 = 64 # params['L2']['units']
-    ac2 = 'relu' # params['L2']['activation']
-    ac3 = 'sigmoid' # params['L3']['activation']
-    opt = keras.optimizers.SGD # params['opt']
-    lr = 0.01 # params['lr']
+    if confusion:
+        n1 = 64 # params['L1']['units']
+        ac1 = 'relu' # params['L1']['activation']
+        n2 = 64 # params['L2']['units']
+        ac2 = 'relu' # params['L2']['activation']
+        ac3 = 'sigmoid' # params['L3']['activation']
+        opt = keras.optimizers.SGD # params['opt']
+        lr = 0.01 # params['lr']
+    else:
+        n1 = params['L1']['units']
+        ac1 = params['L1']['activation']
+        n2 = params['L2']['units']
+        ac2 = params['L2']['activation']
+        ac3 = params['L3']['activation']
+        opt = params['opt']
+        lr = params['lr']
+
     # design neural network architecture
     model = Sequential()
     model.add(Dense(n1, activation=ac1, input_shape=in_shape))

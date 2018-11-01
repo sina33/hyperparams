@@ -38,7 +38,7 @@ def plot_confusion_matrix(cm, classes,
     plt.xlabel('Predicted label')
     plt.savefig('plot.png')
 
-model, X_val, Y_val = smallnet.run({})
+model, X_val, Y_val = smallnet.run({}, True)
 
 # Predict the values from the validation dataset
 Y_pred = model.predict(X_val)
