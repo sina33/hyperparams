@@ -81,8 +81,8 @@ def mutate(indiv):
 
 
 def main():
-    population_size = 12
-    tot_generations = 10
+    population_size = 4
+    tot_generations = 2
     mutate_rate = 0.1
     crossover_rate = 0.5
     population = [create_individual() for _ in range(population_size)]
@@ -91,12 +91,14 @@ def main():
         fitness = [calc_fitness(i) for i in population]        
         # fitness = [calc_fitness(i) for i in population]
         # sort both fitness & population together
-        fitness, population = (list(t) for t in zip(*sorted(zip(fitness, population))))
+        from operator import itemgetter
+        # [list(x) for x in zip(*sorted(zip(list1, list2), key=itemgetter(0)))]
+        fitness, population = [ list(x) for x in zip(*sorted(zip(fitness, population), key=itemgetter(0) ) )]
         children = list()
         for _ in range(population_size):
             father, mother = parent_select(population, 0.5)
             children.extend(crossover(father, mother))
-
+        
         # for i in range(int(mutate_rate*population_size)):
         #     # logging.debug('children: %s', children)
         #     # logging.debug("children[%s] = %s", i, children[i])
